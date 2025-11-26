@@ -1,6 +1,35 @@
 
 import { NodeType } from '../../types';
-import { SVGResult, generateId, ensureHexColor, ensureOpacity } from './svgUtils';
+import { SVGResult, generateId, ensureHexColor, ensureOpacity, svgToDataUrl } from './svgUtils';
+
+export async function processPixelateNode(
+  params: any,
+  resolution: number,
+  input: SVGResult | null
+): Promise<SVGResult> {
+  if (!input) return { xml: '', defs: [] };
+
+  const pixelSize = Math.max(1, params.pixelSize ?? 1);
+  
+  // Calculate the resolution to render at.
+  // If pixelSize is 1, we render at full resolution (Rasterize/Bake).
+  // If pixelSize > 1, we render at a smaller resolution (Pixelate).
+  const renderW = Math.max(1, Math.floor(resolution / pixelSize));
+  const renderH = Math.max(1, Math.floor(resolution / pixelSize));
+
+  try {
+    const dataUrl = await svgToDataUrl(input.xml, input.defs, renderW, renderH, resolution);
+    
+    return {
+      // Return an image tag that uses "image-rendering: pixelated" to keep hard edges when scaled up
+      xml: `<image href="${dataUrl}" x="0" y="0" width="${resolution}" height="${resolution}" preserveAspectRatio="none" style="image-rendering: pixelated" />`,
+      defs: [] // Definitions are baked into the image
+    };
+  } catch (e) {
+    console.error("Pixelation failed", e);
+    return input; // Fallback
+  }
+}
 
 export function processFilterNode(
   type: NodeType, 
@@ -21,21 +50,15 @@ export function processFilterNode(
 
       let newXml = input.xml;
       
-      // Robustly replace attributes on common shape tags.
-      // 1. Remove existing presentation attributes to prevent conflicts
-      //    We match attribute="value" preceded by whitespace
       const attributesToRemove = ['fill', 'stroke', 'stroke-width'];
       attributesToRemove.forEach(attr => {
           const re = new RegExp(`\\s${attr}="[^"]*"`, 'g');
-          newXml = newXml.replace(re, ' '); // Replace with space to maintain separation
+          newXml = newXml.replace(re, ' '); 
       });
 
-      // 2. Inject new attributes into common shapes
-      //    We match the opening tag <tag followed by whitespace, slash, or closing bracket.
       const tags = ['path', 'rect', 'circle', 'polygon', 'ellipse'];
       tags.forEach(tag => {
          const re = new RegExp(`<${tag}(\\s|/|>)`, 'g'); 
-         // Inject attributes immediately after tag name
          newXml = newXml.replace(re, `<${tag} fill="${fillAttr}" stroke="${strokeAttr}" stroke-width="${widthAttr}"$1`);
       });
 
@@ -50,24 +73,17 @@ export function processFilterNode(
       const intensity = (params.intensity ?? 1.5);
       const filterId = generateId('glow');
       
-      const layer1 = 10 + radius;      // Wide atmosphere
-      const layer2 = radius / 3;       // Core glow
+      const layer1 = 10 + radius;      
+      const layer2 = radius / 3;       
       
       const newDef = `
         <filter id="${filterId}" x="-200%" y="-200%" width="500%" height="500%">
-            <!-- Source graphic stays sharp (Hard Glow) -->
-            
-            <!-- Blur Layers -->
             <feGaussianBlur in="SourceGraphic" stdDeviation="${layer1}" result="blur1" />
             <feGaussianBlur in="SourceGraphic" stdDeviation="${layer2}" result="blur2" />
-            
-            <!-- Merge blurs -->
             <feMerge result="mergedBlurs">
                 <feMergeNode in="blur1" />
                 <feMergeNode in="blur2" />
             </feMerge>
-
-            <!-- Apply Intensity (Amplify Alpha) -->
             <feColorMatrix in="mergedBlurs" type="matrix" values="
                 1 0 0 0 0
                 0 1 0 0 0
@@ -75,8 +91,6 @@ export function processFilterNode(
                 0 0 0 ${intensity} 0" 
                 result="amplifiedBlur" 
             />
-            
-            <!-- Final Merge: Amplified Blur + Source (Source on top = Hard core) -->
             <feMerge>
                 <feMergeNode in="amplifiedBlur" />
                 <feMergeNode in="SourceGraphic" />
@@ -95,24 +109,17 @@ export function processFilterNode(
       const intensity = (params.intensity ?? 2);
       const filterId = generateId('neon');
       
-      const layer1 = radius;           // Outer glow
-      const layer2 = radius / 4;       // Tight glow
+      const layer1 = radius;           
+      const layer2 = radius / 4;       
       
       const newDef = `
         <filter id="${filterId}" x="-200%" y="-200%" width="500%" height="500%">
-            <!-- Source graphic stays sharp (Neon Tube) -->
-            
-            <!-- Blur Layers -->
             <feGaussianBlur in="SourceGraphic" stdDeviation="${layer1}" result="blur1" />
             <feGaussianBlur in="SourceGraphic" stdDeviation="${layer2}" result="blur2" />
-            
-            <!-- Merge blurs -->
             <feMerge result="mergedBlurs">
                 <feMergeNode in="blur1" />
                 <feMergeNode in="blur2" />
             </feMerge>
-
-            <!-- Apply Intensity (Amplify Alpha) -->
             <feColorMatrix in="mergedBlurs" type="matrix" values="
                 1 0 0 0 0
                 0 1 0 0 0
@@ -120,8 +127,6 @@ export function processFilterNode(
                 0 0 0 ${intensity} 0" 
                 result="amplifiedBlur" 
             />
-            
-            <!-- Final Merge: Amplified Blur + Source (Source on top) -->
             <feMerge>
                 <feMergeNode in="amplifiedBlur" />
                 <feMergeNode in="SourceGraphic" />
@@ -157,14 +162,12 @@ export function processFilterNode(
       
       let newXml = input.xml;
       
-      // Remove existing stroke attributes
       const attributesToRemove = ['stroke', 'stroke-width', 'stroke-opacity'];
       attributesToRemove.forEach(attr => {
           const re = new RegExp(`\\s${attr}="[^"]*"`, 'g');
           newXml = newXml.replace(re, ' '); 
       });
 
-      // Inject new attributes
       const tags = ['path', 'rect', 'circle', 'polygon', 'ellipse'];
       tags.forEach(tag => {
          const re = new RegExp(`<${tag}(\\s|/|>)`, 'g'); 

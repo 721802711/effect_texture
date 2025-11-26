@@ -171,10 +171,10 @@ export const useStore = create<AppState>((set, get) => ({
   saveProjectAsTemplate: async () => {
     const { projectName, nodes, edges } = get();
     
-    // 1. Generate very small thumbnail (64px) to save localStorage space
+    // 1. Generate thumbnail (512px) to match high quality request
     let thumbnail = undefined;
     try {
-        thumbnail = await generateTexturePNG(nodes, edges, 64);
+        thumbnail = await generateTexturePNG(nodes, edges, 512);
     } catch (e) {
         console.warn("Failed to generate thumbnail", e);
     }
@@ -200,7 +200,7 @@ export const useStore = create<AppState>((set, get) => ({
         localStorage.setItem(USER_TEMPLATES_KEY, JSON.stringify(updatedUserTemplates));
     } catch (e) {
         console.error("Storage full", e);
-        alert("Could not save template: Storage full.");
+        alert("Could not save template: Storage full (Images are too large). Try deleting old templates.");
         return;
     }
 

@@ -1,10 +1,11 @@
 
-import React, { memo, useEffect, useState } from 'react';
+import React, { memo, useEffect, useState, useRef } from 'react';
 import { BaseNode } from './BaseNode';
 import { useStore } from '../../store';
 import { NodeType } from '../../types';
 import { SliderControl } from '../ui/Controls';
 import { generateTexturePNG } from '../../services/graphCompiler';
+import { Upload, Image as ImageIcon, Plus, Trash2, ChevronDown } from 'lucide-react';
 
 // Helper Component for Node Previews
 const NodePreview = ({ nodeId, visible }: { nodeId: string, visible?: boolean }) => {
@@ -19,10 +20,10 @@ const NodePreview = ({ nodeId, visible }: { nodeId: string, visible?: boolean })
 
       let active = true;
       const generate = async () => {
-          // Generate low-res thumbnail (128px) for performance
+          // Generate thumbnail (512px) for preview
           try {
              // Pass nodeId to generateTexturePNG to render the graph up to this node
-             const url = await generateTexturePNG(nodes, edges, 128, nodeId);
+             const url = await generateTexturePNG(nodes, edges, 512, nodeId);
              if (active) setPreviewUrl(url);
           } catch(e) { 
              console.error("Preview generation failed", e); 
@@ -46,14 +47,14 @@ const NodePreview = ({ nodeId, visible }: { nodeId: string, visible?: boolean })
              </div>
           )}
           <div className="absolute bottom-0 left-0 right-0 bg-black/60 backdrop-blur-sm p-1 opacity-0 group-hover/preview:opacity-100 transition-opacity text-[9px] text-center text-gray-400">
-             128px
+             512px
           </div>
       </div>
   );
 }
 
 // ============================================================================
-// 1. GENERATOR NODES
+// 1. GENERATOR NODES (Output Blue/SVG)
 // ============================================================================
 
 const RectangleNode = ({ id, data, selected }: any) => {
@@ -161,6 +162,148 @@ const BeamNode = ({ id, data, selected }: any) => {
   );
 };
 
+interface Stop {
+  id: string;
+  offset: number; // 0-1
+  color: string;
+  opacity: number; // 0-1
+}
+
+const GradientNode = ({ id, data, selected }: any) => {
+  const updateParams = useStore(s => s.updateNodeParams);
+  
+  const stops: Stop[] = data.params.stops || [
+    { id: '1', offset: 0, color: '#000000', opacity: 1 },
+    { id: '2', offset: 1, color: '#ffffff', opacity: 1 }
+  ];
+
+  const handleAddStop = () => {
+    const newStop: Stop = {
+      id: Date.now().toString(),
+      offset: 0.5,
+      color: '#888888',
+      opacity: 1
+    };
+    const newStops = [...stops, newStop].sort((a, b) => a.offset - b.offset);
+    updateParams(id, { stops: newStops });
+  };
+
+  const handleUpdateStop = (stopId: string, updates: Partial<Stop>) => {
+    const newStops = stops.map(s => s.id === stopId ? { ...s, ...updates } : s);
+    if (updates.offset !== undefined) {
+      newStops.sort((a, b) => a.offset - b.offset);
+    }
+    updateParams(id, { stops: newStops });
+  };
+
+  const handleRemoveStop = (stopId: string) => {
+    if (stops.length <= 2) return; 
+    const newStops = stops.filter(s => s.id !== stopId);
+    updateParams(id, { stops: newStops });
+  };
+
+  const gradientCSS = `linear-gradient(90deg, ${stops.map(s => {
+    return `${s.color} ${s.offset * 100}%`;
+  }).join(', ')})`;
+
+  return (
+    <BaseNode 
+      id={id} 
+      label={data.label} 
+      selected={selected} 
+      inputs={[]} 
+      outputs={['out']} 
+      headerColor="bg-orange-500/80"
+      showPreview={data.params.showPreview}
+      className="w-72" 
+    >
+       <div className="mb-4">
+         <div className="w-full h-8 rounded border border-white/10 relative overflow-hidden bg-[url('https://transparent-textures.patterns.velmo.de/checkerboard.png')] bg-repeat">
+            <div 
+              className="absolute inset-0 w-full h-full"
+              style={{ background: gradientCSS }}
+            />
+         </div>
+       </div>
+
+       <div className="mb-4 space-y-2 pb-4 border-b border-white/5">
+          <SliderControl label="X Direction" value={data.params.x ?? 1} min={-1} max={1} step={0.1} onChange={(v:number) => updateParams(id, {x:v})} />
+          <SliderControl label="Y Direction" value={data.params.y ?? 0} min={-1} max={1} step={0.1} onChange={(v:number) => updateParams(id, {y:v})} />
+          <SliderControl label="Power" value={data.params.power ?? 1} min={0.1} max={5} step={0.1} onChange={(v:number) => updateParams(id, {power:v})} />
+       </div>
+
+       <div className="flex items-center justify-between mb-2">
+         <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Stops</span>
+         <button 
+           onClick={handleAddStop}
+           className="p-1 rounded bg-white/5 hover:bg-purple-500/20 hover:text-purple-400 text-gray-400 transition-colors"
+           title="Add Stop"
+         >
+           <Plus size={12} />
+         </button>
+       </div>
+
+       <div className="flex flex-col gap-1.5 max-h-40 overflow-y-auto pr-1 custom-scrollbar">
+         {stops.map((stop) => (
+           <div key={stop.id} className="flex items-center gap-2 bg-black/20 p-1.5 rounded border border-white/5 group/row">
+              <div className="flex flex-col w-12 shrink-0">
+                 <input 
+                   type="number" 
+                   min={0} max={100}
+                   value={Math.round(stop.offset * 100)}
+                   onChange={(e) => {
+                     const val = Math.min(100, Math.max(0, parseInt(e.target.value) || 0));
+                     handleUpdateStop(stop.id, { offset: val / 100 });
+                   }}
+                   className="bg-transparent text-[10px] font-mono text-gray-300 text-center border-b border-white/10 focus:border-purple-500 focus:outline-none"
+                 />
+                 <span className="text-[8px] text-gray-600 text-center">%</span>
+              </div>
+
+              <div className="flex-1 flex items-center gap-2 bg-black/20 rounded p-1 border border-white/5 relative">
+                  <div className="w-5 h-5 rounded-sm overflow-hidden relative border border-white/10 shrink-0">
+                     <input 
+                        type="color" 
+                        value={stop.color}
+                        onChange={(e) => handleUpdateStop(stop.id, { color: e.target.value })}
+                        className="absolute -top-1 -left-1 w-[150%] h-[150%] p-0 border-none cursor-pointer"
+                     />
+                  </div>
+                  
+                  <div className="h-4 w-[1px] bg-white/10 mx-0.5" />
+
+                  <div className="flex items-center gap-1 w-full">
+                    <span className="text-[9px] text-gray-500">Op</span>
+                    <input 
+                       type="number" 
+                       min={0} max={100}
+                       value={Math.round(stop.opacity * 100)}
+                       onChange={(e) => {
+                         const val = Math.min(100, Math.max(0, parseInt(e.target.value) || 0));
+                         handleUpdateStop(stop.id, { opacity: val / 100 });
+                       }}
+                       className="w-full bg-transparent text-[10px] text-gray-300 focus:outline-none"
+                    />
+                    <span className="text-[9px] text-gray-600">%</span>
+                  </div>
+              </div>
+
+              <button 
+                onClick={() => handleRemoveStop(stop.id)}
+                disabled={stops.length <= 2}
+                className={`p-1 text-gray-600 hover:text-red-400 transition-colors ${stops.length <= 2 ? 'opacity-20 cursor-not-allowed' : ''}`}
+              >
+                <Trash2 size={12} />
+              </button>
+           </div>
+         ))}
+       </div>
+
+       <NodePreview nodeId={id} visible={data.params.showPreview === true} />
+    </BaseNode>
+  );
+};
+
 // ============================================================================
 // 2. INPUT NODES
 // ============================================================================
@@ -175,7 +318,7 @@ const ColorNode = ({ id, data, selected }: any) => {
       inputs={['in']} 
       outputs={['rgba']} 
       headerColor="bg-emerald-500/80"
-      showPreview={false} // Color node already has a custom preview
+      showPreview={false} 
     >
       <div className="flex gap-2 mb-2">
         <div className="w-full h-8 rounded border border-white/10 shadow-inner relative overflow-hidden">
@@ -202,7 +345,7 @@ const ValueNode = ({ id, data, selected }: any) => {
       selected={selected} 
       inputs={[]} 
       outputs={['val']} 
-      headerColor="bg-gray-500/80"
+      headerColor="bg-emerald-500/80"
       showPreview={false}
     >
       <SliderControl 
@@ -222,9 +365,9 @@ const AlphaNode = ({ id, data, selected }: any) => {
       id={id} 
       label={data.label} 
       selected={selected} 
-      inputs={['in']} // Added input
+      inputs={['in']}
       outputs={['alpha']} 
-      headerColor="bg-gray-400/80"
+      headerColor="bg-emerald-500/80"
       showPreview={data.params.showPreview}
     >
       <div className="flex gap-2 mb-2">
@@ -243,6 +386,69 @@ const AlphaNode = ({ id, data, selected }: any) => {
         onChange={(v:number) => updateParams(id, {value:v})} 
       />
       <NodePreview nodeId={id} visible={data.params.showPreview === true} />
+    </BaseNode>
+  );
+};
+
+// IMAGE NODE: Output Green (Bitmap)
+const ImageNode = ({ id, data, selected }: any) => {
+  const updateParams = useStore(s => s.updateNodeParams);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        updateParams(id, { imageSrc: event.target?.result });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const hasImage = !!data.params.imageSrc;
+
+  return (
+    <BaseNode 
+      id={id} 
+      label={data.label} 
+      selected={selected} 
+      inputs={[]} 
+      outputs={[{ id: 'rgba', type: 'bitmap' }]} 
+      headerColor="bg-emerald-500/80"
+      showPreview={false} 
+    >
+       <input 
+         type="file" 
+         ref={inputRef} 
+         onChange={handleUpload} 
+         accept="image/*" 
+         className="hidden" 
+       />
+       
+       <div className="w-full aspect-square bg-black/50 rounded border border-white/10 relative overflow-hidden group/image">
+          {hasImage ? (
+            <>
+              <img src={data.params.imageSrc} alt="Uploaded" className="w-full h-full object-cover" />
+              <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:image:opacity-100 transition-opacity">
+                <button 
+                  onClick={() => inputRef.current?.click()}
+                  className="px-3 py-1 bg-white/10 hover:bg-white/20 border border-white/20 rounded-full text-xs text-white backdrop-blur-sm"
+                >
+                  Change
+                </button>
+              </div>
+            </>
+          ) : (
+             <div 
+               className="w-full h-full flex flex-col items-center justify-center text-gray-500 gap-2 cursor-pointer hover:bg-white/5 transition-colors"
+               onClick={() => inputRef.current?.click()}
+             >
+                <ImageIcon size={24} />
+                <span className="text-xs">Click to Upload</span>
+             </div>
+          )}
+       </div>
     </BaseNode>
   );
 };
@@ -380,6 +586,33 @@ const GradientFadeNode = ({ id, data, selected }: any) => {
   );
 };
 
+// PIXELATE NODE: Input Blue (SVG), Output Green (Bitmap)
+const PixelateNode = ({ id, data, selected }: any) => {
+  const updateParams = useStore(s => s.updateNodeParams);
+  return (
+    <BaseNode 
+      id={id} 
+      label="Pixelate / Rasterize" 
+      selected={selected} 
+      inputs={['in']} 
+      outputs={[{ id: 'out', type: 'bitmap' }]} 
+      headerColor="bg-blue-500/80" 
+      showPreview={data.params.showPreview}
+    >
+      <SliderControl 
+        label="Pixel Size" 
+        value={data.params.pixelSize ?? 1} 
+        min={1} max={100} step={1} 
+        onChange={(v:number) => updateParams(id, {pixelSize:v})} 
+      />
+      <div className="text-[10px] text-gray-500 px-1 mt-1 text-center italic">
+         Size 1 = High Res Bake
+      </div>
+      <NodePreview nodeId={id} visible={data.params.showPreview === true} />
+    </BaseNode>
+  );
+};
+
 // ============================================================================
 // 5. TRANSFORM NODES
 // ============================================================================
@@ -415,6 +648,48 @@ const ScaleNode = ({ id, data, selected }: any) => {
   );
 };
 
+// POLAR NODE: Input Blue (Vector), Output Green (Bitmap)
+const PolarNode = ({ id, data, selected }: any) => {
+  const updateParams = useStore(s => s.updateNodeParams);
+  return (
+    <BaseNode 
+      id={id} 
+      label="Polar Coords" 
+      selected={selected} 
+      inputs={['in']} 
+      outputs={[{ id: 'out', type: 'bitmap' }]} 
+      headerColor="bg-violet-500/80" 
+      showPreview={data.params.showPreview}
+    >
+      
+      <div className="flex flex-col gap-1.5 mb-2">
+         <label className="text-[10px] text-gray-500 font-medium px-1">Mapping Mode</label>
+         <div className="relative group/select">
+            <select 
+              className="w-full bg-[#09090b] border border-white/10 rounded px-2 py-1.5 text-[10px] text-gray-300 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 cursor-pointer appearance-none transition-colors"
+              value={data.params.type || 'rect_to_polar'}
+              onChange={(e) => updateParams(id, { type: e.target.value })}
+              onPointerDown={(e) => e.stopPropagation()} 
+            >
+              <option value="rect_to_polar" className="bg-[#09090b] text-gray-300">Rect to Polar (Burst)</option>
+              <option value="polar_to_rect" className="bg-[#09090b] text-gray-300">Polar to Rect (Ring)</option>
+            </select>
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500 group-hover/select:text-gray-300 transition-colors">
+               <ChevronDown size={12} />
+            </div>
+         </div>
+      </div>
+
+      <SliderControl label="X Offset" value={data.params.x ?? 0} min={-1} max={1} step={0.01} onChange={(v:number) => updateParams(id, {x:v})} />
+      <SliderControl label="Y Offset" value={data.params.y ?? 0} min={-1} max={1} step={0.01} onChange={(v:number) => updateParams(id, {y:v})} />
+      <SliderControl label="Radial Scale" value={data.params.radialScale ?? 1} min={0.1} max={5} step={0.1} onChange={(v:number) => updateParams(id, {radialScale:v})} />
+      <SliderControl label="Angular Scale" value={data.params.angularScale ?? 1} min={0.1} max={5} step={0.1} onChange={(v:number) => updateParams(id, {angularScale:v})} />
+
+      <NodePreview nodeId={id} visible={data.params.showPreview === true} />
+    </BaseNode>
+  );
+};
+
 // ============================================================================
 // 6. OUTPUT NODE
 // ============================================================================
@@ -423,7 +698,15 @@ const OutputNode = ({ id, data, selected }: any) => {
   const textureUrl = useStore((state) => state.previewTextureUrl);
   
   return (
-    <BaseNode id={id} label="OUTPUT" selected={selected} inputs={['in']} headerColor="bg-white" className="w-64" showPreview={false}>
+    <BaseNode 
+      id={id} 
+      label="OUTPUT" 
+      selected={selected} 
+      inputs={[{ id: 'in', type: 'any' }]} 
+      headerColor="bg-white" 
+      className="w-64" 
+      showPreview={false}
+    >
       <div className="flex flex-col gap-2">
          {/* Preview Area */}
          <div className="w-full aspect-square bg-black/50 rounded overflow-hidden border border-white/10 relative">
@@ -459,25 +742,29 @@ export const nodeTypes = {
   [NodeType.POLYGON]: memo(PolygonNode),
   [NodeType.WAVY_RING]: memo(WavyRingNode),
   [NodeType.BEAM]: memo(BeamNode),
+  [NodeType.GRADIENT]: memo(GradientNode), 
   
   [NodeType.COLOR]: memo(ColorNode),
   [NodeType.VALUE]: memo(ValueNode),
   [NodeType.ALPHA]: memo(AlphaNode),
+  [NodeType.IMAGE]: memo(ImageNode), 
   [NodeType.ADD]: memo(MathAddNode),
   [NodeType.SUBTRACT]: memo(MathSubNode),
   [NodeType.MULTIPLY]: memo(MathMultiplyNode),
   [NodeType.DIVIDE]: memo(MathDivideNode),
   
-  // New Nodes
   [NodeType.FILL]: memo(FillNode),
   [NodeType.GLOW]: memo(GlowNode),
   [NodeType.NEON]: memo(NeonNode),
   [NodeType.SOFT_BLUR]: memo(SoftBlurNode),
   [NodeType.STROKE]: memo(StrokeNode),
   [NodeType.GRADIENT_FADE]: memo(GradientFadeNode),
+  [NodeType.PIXELATE]: memo(PixelateNode), 
+  
   [NodeType.TRANSLATE]: memo(TranslateNode),
   [NodeType.ROTATE]: memo(RotateNode),
   [NodeType.SCALE]: memo(ScaleNode),
+  [NodeType.POLAR]: memo(PolarNode),
   
   [NodeType.OUTPUT]: memo(OutputNode),
   outputNode: memo(OutputNode)

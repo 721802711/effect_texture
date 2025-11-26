@@ -1,3 +1,4 @@
+
 import { NodeType, TextureNode, TextureEdge } from './types';
 
 export const INITIAL_NODES: TextureNode[] = [
@@ -32,9 +33,19 @@ export const INITIAL_NODES: TextureNode[] = [
     },
   },
   {
+    id: 'node-polar',
+    type: NodeType.POLAR,
+    position: { x: 820, y: 325 },
+    data: { 
+      label: 'Polar Coords', 
+      type: NodeType.POLAR, 
+      params: { type: 'rect_to_polar' } 
+    },
+  },
+  {
     id: 'node-output',
     type: 'outputNode', // Special type for final output
-    position: { x: 950, y: 300 },
+    position: { x: 1150, y: 300 },
     data: { 
       label: 'Material Output', 
       type: NodeType.OUTPUT, 
@@ -46,7 +57,8 @@ export const INITIAL_NODES: TextureNode[] = [
 export const INITIAL_EDGES: TextureEdge[] = [
   { id: 'e1', source: 'node-rect', sourceHandle: 'out', target: 'node-mult', targetHandle: 'a' },
   { id: 'e2', source: 'node-circle', sourceHandle: 'out', target: 'node-mult', targetHandle: 'b' },
-  { id: 'e3', source: 'node-mult', sourceHandle: 'out', target: 'node-output', targetHandle: 'in' },
+  { id: 'e3', source: 'node-mult', sourceHandle: 'out', target: 'node-polar', targetHandle: 'in' },
+  { id: 'e4', source: 'node-polar', sourceHandle: 'out', target: 'node-output', targetHandle: 'in' },
 ];
 
 export const PREVIEW_RES = 512;

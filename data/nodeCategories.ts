@@ -1,3 +1,4 @@
+
 import { 
   Palette, 
   Layers,
@@ -19,7 +20,11 @@ import {
   PenTool,
   PaintBucket,
   Zap,
-  Ghost
+  Ghost,
+  Image as ImageIcon,
+  Pipette,
+  Globe,
+  Grid
 } from 'lucide-react';
 import { NodeType } from '../types';
 
@@ -33,6 +38,7 @@ export const CATEGORIES = [
       { label: 'Polygon', icon: Hexagon, type: NodeType.POLYGON },
       { label: 'Wavy Ring', icon: Waves, type: NodeType.WAVY_RING },
       { label: 'Beam', icon: Flashlight, type: NodeType.BEAM },
+      { label: 'Gradient', icon: Pipette, type: NodeType.GRADIENT },
     ]
   },
   {
@@ -42,6 +48,7 @@ export const CATEGORIES = [
       { label: 'Color', icon: Palette, type: NodeType.COLOR },
       { label: 'Value', icon: Layers, type: NodeType.VALUE },
       { label: 'Alpha', icon: Ghost, type: NodeType.ALPHA },
+      { label: 'Image', icon: ImageIcon, type: NodeType.IMAGE },
     ]
   },
   {
@@ -54,6 +61,7 @@ export const CATEGORIES = [
       { label: 'Soft Blur', icon: Droplets, type: NodeType.SOFT_BLUR },
       { label: 'Stroke', icon: PenTool, type: NodeType.STROKE },
       { label: 'Fade', icon: Blend, type: NodeType.GRADIENT_FADE },
+      { label: 'Pixelate', icon: Grid, type: NodeType.PIXELATE },
     ]
   },
   {
@@ -63,6 +71,7 @@ export const CATEGORIES = [
       { label: 'Move', icon: Move, type: NodeType.TRANSLATE },
       { label: 'Rotate', icon: RotateCw, type: NodeType.ROTATE },
       { label: 'Scale', icon: Maximize, type: NodeType.SCALE },
+      { label: 'Polar Coords', icon: Globe, type: NodeType.POLAR },
     ]
   },
   {

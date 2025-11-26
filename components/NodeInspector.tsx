@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { X, Download, MonitorUp } from 'lucide-react';
+import { X, Download, MonitorUp, ChevronDown } from 'lucide-react';
 import { useStore } from '../store';
 import { NodeType } from '../types';
 import { SliderControl } from './ui/Controls';
@@ -176,6 +176,32 @@ const NodeInspector: React.FC = () => {
 
           {data.type === NodeType.SCALE && (
              <SliderControl label="Factor" value={data.params.scale ?? 1} min={0.1} max={5} onChange={(v:number) => updateNodeParams(node.id, {scale:v})} />
+          )}
+
+          {data.type === NodeType.POLAR && (
+            <>
+              <div className="flex flex-col gap-1.5 mb-2">
+                 <label className="text-[10px] text-gray-500 font-medium px-1">Mapping Mode</label>
+                 <div className="relative group/select">
+                     <select 
+                       className="w-full bg-[#09090b] border border-white/10 rounded px-2 py-1.5 text-[10px] text-gray-300 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 cursor-pointer appearance-none transition-colors"
+                       value={data.params.type || 'rect_to_polar'}
+                       onChange={(e) => updateNodeParams(node.id, { type: e.target.value })}
+                     >
+                       <option value="rect_to_polar" className="bg-[#09090b] text-gray-300">Rect to Polar (Burst)</option>
+                       <option value="polar_to_rect" className="bg-[#09090b] text-gray-300">Polar to Rect (Ring)</option>
+                     </select>
+                     <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500 group-hover/select:text-gray-300 transition-colors">
+                        <ChevronDown size={12} />
+                     </div>
+                 </div>
+              </div>
+
+              <SliderControl label="X Offset" value={data.params.x ?? 0} min={-1} max={1} step={0.01} onChange={(v:number) => updateNodeParams(node.id, {x:v})} />
+              <SliderControl label="Y Offset" value={data.params.y ?? 0} min={-1} max={1} step={0.01} onChange={(v:number) => updateNodeParams(node.id, {y:v})} />
+              <SliderControl label="Radial Scale" value={data.params.radialScale ?? 1} min={0.1} max={5} step={0.1} onChange={(v:number) => updateNodeParams(node.id, {radialScale:v})} />
+              <SliderControl label="Angular Scale" value={data.params.angularScale ?? 1} min={0.1} max={5} step={0.1} onChange={(v:number) => updateNodeParams(node.id, {angularScale:v})} />
+            </>
           )}
           
           {data.type === NodeType.OUTPUT && (

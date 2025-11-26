@@ -81,12 +81,17 @@ const ContextMenu: React.FC = () => {
   return (
     <>
       {/* Backdrop */}
-      <div className="fixed inset-0 z-[100] bg-transparent" onClick={() => setContextMenu(null)} />
+      <div 
+        className="fixed inset-0 z-[100] bg-transparent" 
+        onClick={() => setContextMenu(null)} 
+        onContextMenu={(e) => { e.preventDefault(); setContextMenu(null); }}
+      />
       
       {/* Menu */}
       <div 
         className="fixed z-[101] bg-[#161618] border border-white/10 rounded-xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-100 ring-1 ring-white/5"
         style={{ left: posX, top: posY, width: menuWidth }}
+        onContextMenu={(e) => e.preventDefault()}
       >
         {/* Search */}
         <div className="p-3.5 border-b border-white/5 flex items-center gap-3">

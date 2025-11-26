@@ -5,7 +5,7 @@ import { SVGResult } from './nodes/svgUtils';
 import { processShapeNode } from './nodes/shapeNodes';
 import { processInputNode } from './nodes/inputNodes';
 import { processMathNode } from './nodes/mathNodes';
-import { processFilterNode } from './nodes/filterNodes';
+import { processFilterNode, processPixelateNode } from './nodes/filterNodes';
 import { processTransformNode } from './nodes/transformNodes';
 
 export function downloadImage(dataUrl: string, filename: string) {
@@ -45,8 +45,8 @@ export const generateTextureGraph = async (
   // 2. Cache stores SVGResult objects { xml, defs }
   const cache: Record<string, SVGResult> = {};
 
-  // 3. Recursive Processor
-  const processNode = (nodeId: string): SVGResult => {
+  // 3. Recursive Processor (Async to support Rasterization)
+  const processNode = async (nodeId: string): Promise<SVGResult> => {
     if (cache[nodeId]) return cache[nodeId];
 
     const node = nodes.find(n => n.id === nodeId);
@@ -54,14 +54,14 @@ export const generateTextureGraph = async (
 
     const params = node.data.params;
     
-    // Helper to get inputs
-    const getConnectedResult = (handleId: string): SVGResult | null => {
+    // Helper to get inputs (Async)
+    const getConnectedResult = async (handleId: string): Promise<SVGResult | null> => {
       const incomingEdge = edges.find(e => 
         e.target === nodeId && 
         e.targetHandle === handleId
       );
       if (!incomingEdge) return null;
-      return processNode(incomingEdge.source);
+      return await processNode(incomingEdge.source);
     };
 
     let result: SVGResult = { xml: '', defs: [] };
@@ -77,11 +77,14 @@ export const generateTextureGraph = async (
         result = processShapeNode(node.data.type, params, RES);
         break;
 
-      // --- INPUTS ---
+      // --- INPUTS & PATTERNS ---
       case NodeType.COLOR:
       case NodeType.VALUE:
       case NodeType.ALPHA:
-        result = processInputNode(node.data.type, params, RES, getConnectedResult('in'));
+      case NodeType.IMAGE:
+      case NodeType.GRADIENT:
+        // Inputs might depend on 'in' (e.g. Tinting)
+        result = processInputNode(node.data.type, params, RES, await getConnectedResult('in'));
         break;
 
       // --- MATH ---
@@ -90,8 +93,8 @@ export const generateTextureGraph = async (
       case NodeType.MULTIPLY:
       case NodeType.DIVIDE:
         result = processMathNode(node.data.type, params, RES, 
-          getConnectedResult('a'), 
-          getConnectedResult('b')
+          await getConnectedResult('a'), 
+          await getConnectedResult('b')
         );
         break;
 
@@ -102,19 +105,26 @@ export const generateTextureGraph = async (
       case NodeType.SOFT_BLUR:
       case NodeType.STROKE:
       case NodeType.GRADIENT_FADE:
-        result = processFilterNode(node.data.type, params, RES, getConnectedResult('in'));
+        result = processFilterNode(node.data.type, params, RES, await getConnectedResult('in'));
+        break;
+
+      case NodeType.PIXELATE:
+        // This is async because it uses Canvas to rasterize
+        result = await processPixelateNode(params, RES, await getConnectedResult('in'));
         break;
 
       // --- TRANSFORMS ---
       case NodeType.TRANSLATE:
       case NodeType.ROTATE:
       case NodeType.SCALE:
-        result = processTransformNode(node.data.type, params, RES, getConnectedResult('in'));
+      case NodeType.POLAR:
+        // Now awaited as transforms can be async (e.g. Polar rasterization)
+        result = await processTransformNode(node.data.type, params, RES, await getConnectedResult('in'));
         break;
 
       // --- OUTPUT ---
       case NodeType.OUTPUT: {
-        const input = getConnectedResult('in');
+        const input = await getConnectedResult('in');
         if (input) {
           result = input;
         } else {
@@ -138,7 +148,7 @@ export const generateTextureGraph = async (
     return result;
   };
 
-  const finalResult = processNode(rootNode.id);
+  const finalResult = await processNode(rootNode.id);
   
   // 4. Construct Final SVG String
   // Deduplicate definitions (prevent ID conflicts in filters)
