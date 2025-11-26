@@ -1,9 +1,9 @@
 /** @type {import('tailwindcss').Config} */
-export default {
+module.exports = {
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
-    "./*.{js,ts,jsx,tsx}" // 确保扫描根目录下的文件 (如果 index.tsx 在根目录)
+    "./components/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
     extend: {
@@ -16,8 +16,17 @@ export default {
           850: '#1a202c',
           950: '#0d1117',
         }
+      },
+      animation: {
+        'in': 'fade-in 0.2s ease-out',
+      },
+      keyframes: {
+        'fade-in': {
+          '0%': { opacity: '0', transform: 'scale(0.95)' },
+          '100%': { opacity: '1', transform: 'scale(1)' },
+        }
       }
-    },
+    }
   },
   plugins: [],
 }

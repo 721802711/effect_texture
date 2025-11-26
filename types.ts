@@ -26,6 +26,7 @@ export enum NodeType {
   // Inputs
   COLOR = 'COLOR',
   VALUE = 'VALUE',
+  ALPHA = 'ALPHA', // New Alpha Node
 
   // Math
   ADD = 'ADD',

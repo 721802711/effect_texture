@@ -1,3 +1,4 @@
+
 import { NodeType } from '../../types';
 import { SVGResult, generateId, ensureHexColor, ensureOpacity } from './svgUtils';
 
@@ -7,7 +8,7 @@ export function processFilterNode(
   resolution: number, 
   input: SVGResult | null
 ): SVGResult {
-  if (!input) return { xml: '', defs: '' };
+  if (!input) return { xml: '', defs: [] };
 
   switch (type) {
     case NodeType.FILL: {
@@ -52,11 +53,7 @@ export function processFilterNode(
       const layer1 = 10 + radius;      // Wide atmosphere
       const layer2 = radius / 3;       // Core glow
       
-      // We use feColorMatrix to apply the intensity gain to the blur layers.
-      // Matrix scales the Alpha channel by 'intensity'.
-      // Then we merge the boosted blurs with the source.
-      
-      const defs = `
+      const newDef = `
         <filter id="${filterId}" x="-200%" y="-200%" width="500%" height="500%">
             <!-- Source graphic stays sharp (Hard Glow) -->
             
@@ -89,13 +86,11 @@ export function processFilterNode(
       
       return {
         xml: `<g filter="url(#${filterId})">${input.xml}</g>`,
-        defs: input.defs + defs
+        defs: [...input.defs, newDef]
       };
     }
 
     case NodeType.NEON: {
-      // Very similar to Hard Glow, but maybe tuned for "Neon" look
-      // Source stays sharp, overlaying a colored or bright blur.
       const radius = (params.radius ?? 15);
       const intensity = (params.intensity ?? 2);
       const filterId = generateId('neon');
@@ -103,7 +98,7 @@ export function processFilterNode(
       const layer1 = radius;           // Outer glow
       const layer2 = radius / 4;       // Tight glow
       
-      const defs = `
+      const newDef = `
         <filter id="${filterId}" x="-200%" y="-200%" width="500%" height="500%">
             <!-- Source graphic stays sharp (Neon Tube) -->
             
@@ -136,7 +131,7 @@ export function processFilterNode(
       
       return {
         xml: `<g filter="url(#${filterId})">${input.xml}</g>`,
-        defs: input.defs + defs
+        defs: [...input.defs, newDef]
       };
     }
     
@@ -144,7 +139,7 @@ export function processFilterNode(
       const radius = params.radius ?? 5;
       const filterId = generateId('blur');
       
-      const defs = `
+      const newDef = `
         <filter id="${filterId}" x="-50%" y="-50%" width="200%" height="200%">
           <feGaussianBlur in="SourceGraphic" stdDeviation="${radius}" />
         </filter>
@@ -152,7 +147,7 @@ export function processFilterNode(
       
       return {
         xml: `<g filter="url(#${filterId})">${input.xml}</g>`,
-        defs: input.defs + defs
+        defs: [...input.defs, newDef]
       };
     }
 
@@ -190,7 +185,7 @@ export function processFilterNode(
       const maskId = generateId('fadeMask');
       const gradId = generateId('fadeGrad');
       
-      const defs = `
+      const newDef = `
         <linearGradient id="${gradId}" gradientTransform="rotate(${directionDeg - 90} .5 .5)">
             <stop offset="0%" stop-color="white" stop-opacity="${start}" />
             <stop offset="100%" stop-color="white" stop-opacity="${end}" />
@@ -202,7 +197,7 @@ export function processFilterNode(
 
       return {
           xml: `<g mask="url(#${maskId})">${input.xml}</g>`,
-          defs: input.defs + defs
+          defs: [...input.defs, newDef]
       };
     }
   }

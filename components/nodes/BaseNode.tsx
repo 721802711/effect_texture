@@ -1,7 +1,8 @@
+
 import React from 'react';
 import { Handle, Position } from 'reactflow';
 import clsx from 'clsx';
-import { Settings2 } from 'lucide-react';
+import { Settings2, Eye, EyeOff } from 'lucide-react';
 import { useStore } from '../../store';
 
 interface BaseNodeProps {
@@ -13,6 +14,7 @@ interface BaseNodeProps {
   children: React.ReactNode;
   headerColor?: string;
   className?: string;
+  showPreview?: boolean;
 }
 
 export const BaseNode: React.FC<BaseNodeProps> = ({ 
@@ -23,11 +25,24 @@ export const BaseNode: React.FC<BaseNodeProps> = ({
   outputs = [], 
   children,
   headerColor = 'border-l-purple-500',
-  className
+  className,
+  showPreview
 }) => {
   const setEditingNodeId = useStore(s => s.setEditingNodeId);
+  const updateNodeParams = useStore(s => s.updateNodeParams);
   
   const accentClass = headerColor.includes('border') ? headerColor : 'border-l-gray-500';
+
+  // Default is OFF (undefined or false)
+  // Logic: if showPreview is true, it is ON. Else OFF.
+  const isPreviewVisible = showPreview === true;
+
+  const togglePreview = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (id) {
+      updateNodeParams(id, { showPreview: !isPreviewVisible });
+    }
+  };
 
   return (
     <div className={clsx(
@@ -67,20 +82,33 @@ export const BaseNode: React.FC<BaseNodeProps> = ({
       {/* Header */}
       <div className="h-9 flex items-center justify-between px-3 pl-4 bg-white/[0.02] border-b border-white/5">
         <span className="text-[11px] font-semibold text-gray-300 uppercase tracking-wider truncate">{label}</span>
-        {/* Settings Icon - Trigger Inspector */}
-        <button 
-          className="nodrag text-gray-600 opacity-0 group-hover:opacity-100 transition-all cursor-pointer hover:text-white hover:bg-white/10 p-1 rounded"
-          onClick={(e) => {
-            e.stopPropagation();
-            if (id) {
-              const rect = e.currentTarget.getBoundingClientRect();
-              // Position popover to the right of the button
-              setEditingNodeId(id, { x: rect.right + 10, y: rect.top });
-            }
-          }}
-        >
-          <Settings2 size={12} />
-        </button>
+        
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+           {/* Toggle Preview Icon */}
+           {id && showPreview !== undefined && ( // Only show if the node supports preview logic (passed prop)
+             <button 
+               className="nodrag text-gray-500 hover:text-white hover:bg-white/10 p-1 rounded"
+               onClick={togglePreview}
+               title={isPreviewVisible ? "Hide Preview" : "Show Preview"}
+             >
+               {isPreviewVisible ? <Eye size={12} /> : <EyeOff size={12} />}
+             </button>
+           )}
+
+           {/* Settings Icon - Trigger Inspector */}
+           <button 
+             className="nodrag text-gray-600 hover:text-white hover:bg-white/10 p-1 rounded"
+             onClick={(e) => {
+               e.stopPropagation();
+               if (id) {
+                 const rect = e.currentTarget.getBoundingClientRect();
+                 setEditingNodeId(id, { x: rect.right + 10, y: rect.top });
+               }
+             }}
+           >
+             <Settings2 size={12} />
+           </button>
+        </div>
       </div>
 
       {/* Body */}

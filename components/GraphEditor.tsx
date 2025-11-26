@@ -37,7 +37,8 @@ const GraphEditor: React.FC = () => {
     addNode,
     triggerRender,
     interactionMode,
-    viewportResetTrigger 
+    viewportResetTrigger,
+    setContextMenu 
   } = useStore();
 
   const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
@@ -99,8 +100,31 @@ const GraphEditor: React.FC = () => {
     [reactFlowInstance, addNode]
   );
 
+  const onPaneContextMenu = useCallback(
+    (event: React.MouseEvent) => {
+      event.preventDefault(); // Prevent native browser context menu
+      
+      if (reactFlowInstance) {
+          // Get flow coordinates for node creation
+          const position = reactFlowInstance.screenToFlowPosition({
+            x: event.clientX,
+            y: event.clientY,
+          });
+
+          // Set context menu state
+          setContextMenu({
+              x: event.clientX,
+              y: event.clientY,
+              flowX: position.x,
+              flowY: position.y
+          });
+      }
+    },
+    [reactFlowInstance, setContextMenu]
+  );
+
   return (
-    <div className="w-full h-full bg-[#0e0e10]">
+    <div className="w-full h-full bg-[#0e0e10] isolation-isolate">
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -114,6 +138,9 @@ const GraphEditor: React.FC = () => {
         onDragOver={onDragOver}
         onDrop={onDrop}
         
+        // Context Menu Handler
+        onPaneContextMenu={onPaneContextMenu}
+
         // Grid Snapping
         snapToGrid={true}
         snapGrid={[20, 20]}

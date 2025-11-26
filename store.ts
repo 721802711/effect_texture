@@ -16,6 +16,13 @@ import { DEFAULT_TEMPLATES } from './data/templates';
 
 type InteractionMode = 'select' | 'hand';
 
+interface ContextMenuState {
+  x: number;
+  y: number;
+  flowX: number;
+  flowY: number;
+}
+
 interface AppState {
   projectName: string;
   nodes: TextureNode[];
@@ -26,6 +33,8 @@ interface AppState {
   inspectorPosition: { x: number; y: number } | null;
   templates: Template[];
   viewportResetTrigger: number;
+  isAddMenuOpen: boolean; // Controls the visibility of the grid menu (bottom)
+  contextMenu: ContextMenuState | null; // New Context Menu (Right-click)
   
   onNodesChange: (changes: NodeChange[]) => void;
   onEdgesChange: (changes: EdgeChange[]) => void;
@@ -40,6 +49,8 @@ interface AppState {
   saveProjectAsTemplate: () => Promise<void>;
   deleteTemplate: (id: string) => void;
   deleteSelection: () => void;
+  setAddMenuOpen: (isOpen: boolean) => void;
+  setContextMenu: (menu: ContextMenuState | null) => void;
 }
 
 let renderDebounceTimer: any = null;
@@ -70,6 +81,8 @@ export const useStore = create<AppState>((set, get) => ({
   editingNodeId: null,
   inspectorPosition: null,
   viewportResetTrigger: 0,
+  isAddMenuOpen: false,
+  contextMenu: null,
   
   // Initialize: Combine User Templates (first) + Default Templates (last)
   templates: [...loadUserTemplates(), ...DEFAULT_TEMPLATES],
@@ -232,5 +245,8 @@ export const useStore = create<AppState>((set, get) => ({
     if (selectedEdges.length > 0) {
         onEdgesChange(selectedEdges.map(e => ({ type: 'remove', id: e.id })));
     }
-  }
+  },
+  
+  setAddMenuOpen: (isOpen) => set({ isAddMenuOpen: isOpen }),
+  setContextMenu: (menu) => set({ contextMenu: menu }),
 }));

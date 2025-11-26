@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { X, Download, MonitorUp } from 'lucide-react';
 import { useStore } from '../store';
@@ -22,6 +23,8 @@ const NodeInspector: React.FC = () => {
        downloadImage(url, `${projectName.replace(/\s+/g, '_')}_${resValue}.png`);
      }
   };
+  
+  const supportsPreview = data.type !== NodeType.OUTPUT && data.type !== NodeType.VALUE && data.type !== NodeType.COLOR;
 
   return (
     <>
@@ -52,6 +55,31 @@ const NodeInspector: React.FC = () => {
 
         {/* Content */}
         <div className="p-3 overflow-y-auto max-h-[400px]">
+          
+          {/* Common Settings */}
+          {supportsPreview && (
+            <div className="flex items-center justify-between mb-4 pb-4 border-b border-white/5">
+                <label className="text-[10px] text-gray-500 font-medium">Show Preview</label>
+                <div className="relative inline-block w-8 h-4 align-middle select-none transition duration-200 ease-in">
+                    <input 
+                        type="checkbox" 
+                        name="toggle" 
+                        id="toggle" 
+                        className="toggle-checkbox absolute block w-4 h-4 rounded-full bg-white border-4 appearance-none cursor-pointer"
+                        checked={data.params.showPreview === true}
+                        onChange={(e) => updateNodeParams(node.id, { showPreview: e.target.checked })}
+                        style={{ right: data.params.showPreview === true ? '0' : 'auto', left: data.params.showPreview === true ? 'auto' : '0' }}
+                    />
+                    <label 
+                        htmlFor="toggle" 
+                        className={
+                            `toggle-label block overflow-hidden h-4 rounded-full cursor-pointer ${data.params.showPreview === true ? 'bg-purple-600' : 'bg-gray-700'}`
+                        }
+                    ></label>
+                </div>
+            </div>
+          )}
+
           {data.type === NodeType.COLOR && (
             <>
               <div className="w-full h-8 rounded border border-white/10 shadow-inner relative overflow-hidden mb-3">
@@ -62,6 +90,10 @@ const NodeInspector: React.FC = () => {
               <SliderControl label="Green" value={data.params.g ?? 255} min={0} max={255} onChange={(v:number) => updateNodeParams(node.id, {g:v})} />
               <SliderControl label="Blue" value={data.params.b ?? 255} min={0} max={255} onChange={(v:number) => updateNodeParams(node.id, {b:v})} />
             </>
+          )}
+          
+          {data.type === NodeType.ALPHA && (
+            <SliderControl label="Opacity" value={data.params.value ?? 1} min={0} max={1} onChange={(v:number) => updateNodeParams(node.id, {value:v})} />
           )}
 
           {data.type === NodeType.VALUE && (

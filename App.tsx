@@ -5,6 +5,7 @@ import GraphEditor from './components/GraphEditor';
 import NodeInspector from './components/NodeInspector';
 import HomeOverlay from './components/HomeOverlay';
 import Header from './components/Header';
+import ContextMenu from './components/ContextMenu';
 
 const App: React.FC = () => {
   // Optimized: Show Home Overlay by default for better initial UX
@@ -15,6 +16,9 @@ const App: React.FC = () => {
       
       {/* --- MODULE: INSPECTOR --- */}
       <NodeInspector />
+
+      {/* --- MODULE: CONTEXT MENU --- */}
+      <ContextMenu />
 
       {/* --- MODULE: HOME --- */}
       <HomeOverlay isOpen={isHomeOpen} onClose={() => setIsHomeOpen(false)} />

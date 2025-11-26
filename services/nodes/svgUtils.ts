@@ -1,7 +1,7 @@
 
 export interface SVGResult {
   xml: string;
-  defs: string; // For <filter>, <linearGradient>, etc.
+  defs: string[]; // Changed to array for deduplication
 }
 
 export function generateId(prefix: string): string {
